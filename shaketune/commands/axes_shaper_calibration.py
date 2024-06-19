@@ -77,8 +77,13 @@ def axes_shaper_calibration(gcmd, config, st_process: ShakeTuneProcess) -> None:
     # set the needed acceleration values for the test
     toolhead_info = toolhead.get_status(systime)
     old_accel = toolhead_info['max_accel']
-    old_mcr = toolhead_info['minimum_cruise_ratio']
-    gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={max_accel} MINIMUM_CRUISE_RATIO=0')
+
+    if 'minimum_cruise_ratio' in toolhead_info:
+        old_mcr = toolhead_info['minimum_cruise_ratio']
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={max_accel} MINIMUM_CRUISE_RATIO=0')
+    else:
+        old_mcr = None
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={max_accel}')
 
     # Deactivate input shaper if it is active to get raw movements
     input_shaper = printer.lookup_object('input_shaper', None)
@@ -118,4 +123,7 @@ def axes_shaper_calibration(gcmd, config, st_process: ShakeTuneProcess) -> None:
         input_shaper.enable_shaping()
 
     # Restore the previous acceleration values
-    gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={old_accel} MINIMUM_CRUISE_RATIO={old_mcr}')
+    if old_mcr is not None:
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={old_accel} MINIMUM_CRUISE_RATIO={old_mcr}')
+    else:
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={old_accel}')

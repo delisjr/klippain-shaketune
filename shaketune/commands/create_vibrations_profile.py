@@ -59,11 +59,15 @@ def create_vibrations_profile(gcmd, config, st_process: ShakeTuneProcess) -> Non
 
     toolhead_info = toolhead.get_status(systime)
     old_accel = toolhead_info['max_accel']
-    old_mcr = toolhead_info['minimum_cruise_ratio']
     old_sqv = toolhead_info['square_corner_velocity']
 
     # set the wanted acceleration values
-    gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={accel} MINIMUM_CRUISE_RATIO=0 SQUARE_CORNER_VELOCITY=5.0')
+    if 'minimum_cruise_ratio' in toolhead_info:
+        old_mcr = toolhead_info['minimum_cruise_ratio']
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={accel} MINIMUM_CRUISE_RATIO=0 SQUARE_CORNER_VELOCITY=5.0')
+    else:
+        old_mcr = None
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={accel} SQUARE_CORNER_VELOCITY=5.0')
 
     kin_info = toolhead.kin.get_status(systime)
     mid_x = (kin_info['axis_minimum'].x + kin_info['axis_maximum'].x) / 2
@@ -122,21 +126,24 @@ def create_vibrations_profile(gcmd, config, st_process: ShakeTuneProcess) -> Non
 
             # Back and forth movements to record the vibrations at constant speed in both direction
             accelerometer.start_measurement()
+
             for _ in range(movements):
                 toolhead.move([mid_x + dX, mid_y + dY, z_height, E], curr_speed)
                 toolhead.move([mid_x - dX, mid_y - dY, z_height, E], curr_speed)
+
             name = f'vib_an{curr_angle:.2f}sp{curr_speed:.2f}'.replace('.', '_')
             accelerometer.stop_measurement(name)
 
             toolhead.dwell(0.3)
             toolhead.wait_moves()
-
         accelerometer.wait_for_file_writes()
 
     # Restore the previous acceleration values
-    gcode.run_script_from_command(
-        f'SET_VELOCITY_LIMIT ACCEL={old_accel} MINIMUM_CRUISE_RATIO={old_mcr} SQUARE_CORNER_VELOCITY={old_sqv}'
-    )
+    if old_mcr is not None:
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={old_accel} MINIMUM_CRUISE_RATIO={old_mcr} SQUARE_CORNER_VELOCITY={old_sqv}')
+    else:
+        gcode.run_script_from_command(f'SET_VELOCITY_LIMIT ACCEL={old_accel} SQUARE_CORNER_VELOCITY={old_sqv}')
+
     toolhead.wait_moves()
 
     # Run post-processing

@@ -25,7 +25,8 @@ from .graph_creators import (
     StaticGraphCreator,
     VibrationsGraphCreator,
 )
-from .helpers.console_output import ConsoleOutput
+
+
 from .shaketune_config import ShakeTuneConfig
 from .shaketune_process import ShakeTuneProcess
 
